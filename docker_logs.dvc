@@ -1,0 +1,6 @@
+outs:
+- md5: 545709fede7d7f471713f6b0bdf1fa95.dir
+  size: 40848061
+  nfiles: 573
+  hash: md5
+  path: docker_logs

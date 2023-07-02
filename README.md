@@ -1,74 +1,47 @@
-# Lightning Template
+# Assignment6 -  Experiment Tracking
 
+### Methodology
+- `Created a new experiment for CIFAR10 dataset using VIT model`
+- `Running the mutiple experiment using the hydra job lib`
+- `Creating two docker container "Train" and "Logger" to train the models and do the experiment tracking`
+-`In the train container, mounted the two `
+
+### Steps to Run
+
+Build the docker compose file to create "Train" and "Logger" docker images images
 ```
-copper_train --help
-```
-
-examples
-
-- `copper_train data.num_workers=16`
-- `copper_train data.num_workers=16 trainer.deterministic=True +trainer.fast_dev_run=True`
-
-### Cat vs Dog with ViT
-
-```
-find . -type f -empty -print -delete
-```
-
-```
-copper_train experiment=cat_dog data.num_workers=16 +trainer.fast_dev_run=True
+docker-compose build
+docker images
 ```
 
+Run the train container, which will run an experiment to train the VIT models on CIFAR10 datset with patch size 4,8,16 for 1 epoc.
 ```
-copper_train experiment=cat_dog data.num_workers=16
+docker-compose run train
 ```
-
-## Multi Run
-
+Run the logger container, which will start the MLFLOW UI. With MLFLOW ui we can compare the accuracy of differnt patch sizes.
 ```
-copper_train -m hydra/launcher=joblib hydra.launcher.n_jobs=4 experiment=mnist data.batch_size=8,16,32,64 data.num_workers=0
-```
-
-## Development
-
-Install in dev mode
-
-```
-pip install -e .
+docker-compose run --service-ports logger
 ```
 
-## TODO
+### MLflow UI
+Shown the comparison of validation accuracy and validation loss for differnt patch sizes.
 
-Workaround for `num_workers>0` in Hydra JobLib
+![Screenshot](MLFLOW_Run_Comparison.JPG)
 
-```python
-import os
-import torch, torch.nn as nn, torch.nn.functional as F
-from torch.utils.data import DataLoader
-from torchvision import transforms, datasets
-import hydra
+### DVC Tracking
+- `'Mounted the docker_data and docker_logs folder from the "train" docker container to the local`
+- `docker_logs folder contain the logs and model created by the train container`
+- `docker_data contain the CIFAR10 dataset downloaded by the docker container`
 
-class Model(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.l1 = torch.nn.Linear(28 * 28, 10)
-
-    def forward(self, x):
-        return torch.relu(self.l1(x.view(x.size(0), -1)))
-
-@hydra.main()
-def main(cfg):
-    data_set = datasets.MNIST(os.getcwd(), download=True, train=True, transform=transforms.ToTensor())
-    data_loader = DataLoader(data_set, batch_size=64, num_workers=cfg.num_workers, multiprocessing_context='fork')
-    model = Model()
-    optim = torch.optim.Adam(model.parameters(), lr=cfg.lr)
-
-    for batch in data_loader:
-        x, y = batch
-        y_hat = model(x)
-        loss = F.cross_entropy(y_hat, y)
-    print(f'completed {cfg.lr}')
-
-if __name__ == '__main__':
-    main()
+Run dvc tracking using following steps
 ```
+git init .
+dvc init
+```
+
+```
+dvc add docker_data
+dvc add docker_logs
+```
+
+

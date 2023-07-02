@@ -156,7 +156,6 @@ configs/local/default.yaml
 /data
 xdg-open
 
-.dvc
 mlruns
 notebooks
 /logs/mlflow
@@ -166,4 +165,5 @@ scripts
 copper.egg-info
 docker_data
 docker_logs
+data
 
