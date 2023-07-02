@@ -1,0 +1,26 @@
+FROM python:3.9-slim-buster
+
+WORKDIR /workspace
+
+# RUN export DEBIAN_FRONTEND=noninteractive \
+#     && echo "LC_ALL=en_US.UTF-8" >> /etc/environment \
+#     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
+#     && echo "LANG=en_US.UTF-8" > /etc/locale.conf \
+#     && apt update && apt install -y locales \
+#     && locale-gen en_US.UTF-8 \
+#     && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install \
+    -r requirements.txt \
+    -f https://download.pytorch.org/whl/torch_stable.html \
+    && rm -rf /root/.cache/pip
+
+COPY setup.py .
+RUN pip install -e .
+
+COPY . .
+
+# ENV LANG=en_US.UTF-8 \
+#     LANGUAGE=en_US:en \
+#     LC_ALL=en_US.UTF-8
