@@ -1,48 +1,52 @@
-# Assignment6 -  Experiment Tracking
+# Gradio Integration to Lightning Template
 
-### Methodology
-- `Created a new experiment for CIFAR10 dataset using VIT model`
-- `Running the multiple experiments using the hydra job lib`
-- `Creating two docker containers "Train" and "Logger" to train the models and do the experiment tracking`
--` In the train container, mounted the two local volumes, docker_data, and docker_logs. This will save the data and logs file locally `
--`Logger container will mount the "docker_logs" folder to run the MLFlow experiment tracking. `
+## ViT Lightning Module on CIFAR10 dataset
 
-### Steps to Run
+## Model Training and Testing
 
-Build the docker-compose file to create "Train" and "Logger" docker images images
+1. Clone the repo:
 ```
-docker-compose build
-docker images
+git clone -b gradio https://github.com/AKJ21/emlo_assignment6.git
 ```
+2. Install requirements and setup:
+```
+pip install -r requirements.txt && pip install -e .
+```
+3. Train the model:
+```
+copper_train experiment=gradio trainer.max_epochs=10
+```
+Note: By default, trainer is set to train for maximum 1 epochs. You may change this setting by adding trainer.max_epcohs=10 for training 10 epochs.
 
-Run the train container, which will run an experiment to train the VIT models on CIFAR10 dataset with patch sizes 4,8,16 for 1 epoc.
-```
-docker-compose run train
-```
-Run the logger container, which will start the MLFLOW UI. With MLFLOW ui we can compare the accuracy of different patch sizes.
-```
-docker-compose run --service-ports logger
-```
+To check default parameters set for trainer:
+`copper_train --help`
 
-### MLflow UI
-Shown the comparison of validation accuracy and validation loss for different patch sizes.
+To check parameters list for gradio experiment:
+`copper_train experiment=gradio --help`
 
-![Screenshot](MLFLOW_Run_Comparison.JPG)
+## Gradio Application
 
-### DVC Tracking
-- `'Mounted the docker_data and docker_logs folder from the "train" docker container to the local`
-- `docker_logs folder contain the logs and model created by the train container`
-- `docker_data contain the CIFAR10 dataset downloaded by the docker container`
+To run locally:
+`python3 gradio.py`
 
-Run dvc tracking using the following steps
+To run the application inside docker:
+- Build docker image with "`docker build --tag vit-gradio:latest .`"
+- Run the built image: "`docker run -p 8080:8080 vit-gradio:latest`"
+
+Open `localhost:8080` to start playing with the app.
+
+You can either select an image from local, or you may use one of the sample images given in UI.
+
+## Download Application Image from Docker Hub
 ```
-git init .
-dvc init
-```
+# pull image
+docker pull mittal89/vit-gradio:v1-release
 
+# run image
+docker run -p 8080:8080 mittal89/vit-gradio:v1-release
 ```
-dvc add docker_data
-dvc add docker_logs
-```
+Open `localhost:8080` to run the web application.
 
-
+## Group Members:
+- Anurag Mittal
+- Aman Jaipuria

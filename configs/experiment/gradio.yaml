@@ -1,0 +1,39 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=gradio
+
+defaults:
+  - override /data: cifar10.yaml
+  - override /model: vit.yaml
+  - override /trainer: default.yaml
+  - override /logger: many_loggers.yaml
+  - override /callbacks: default.yaml
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+experiment_name: "cifar10 gradio demo"
+
+tags:
+  cifar10: "gradio_exp"
+
+seed: 12345
+
+trainer:
+  min_epochs: 0
+  max_epochs: 1
+
+data:
+  num_workers: 16
+
+model:
+  patch_size: 4
+  
+compile: False
+
+logger:
+  mlflow:
+    tags: ${tags}
+    experiment_name: ${experiment_name}
+

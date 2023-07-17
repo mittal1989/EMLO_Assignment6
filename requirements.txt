@@ -18,13 +18,13 @@ hydra-joblib-launcher==1.2.0
 
 # --------- loggers --------- #
 mlflow
-# aim>=3.16.2  # no lower than 3.16.2, see https://github.com/aimhubio/aim/issues/2550
+#aim>=3.16.2  # no lower than 3.16.2, see https://github.com/aimhubio/aim/issues/2550
 
 # --------- deployment ------ #
 # fastapi
 
 # -------- exp tracking ----- #
-dvc
+# dvc
 
 # --------- others --------- #
 pyrootutils     # standardizing the project root setup
@@ -33,3 +33,5 @@ rich            # beautiful text formatting in terminal
 pytest          # tests
 black
 # sh            # for running bash commands in some tests (linux/macos only)
+
+gradio
