@@ -1,16 +1,16 @@
-from typing import Any
+from typing import Any, Optional
 
 from lightning import LightningModule
 
 import torch
 from torch import nn
 from einops.layers.torch import Rearrange, Reduce
-from einops import rearrange, reduce, repeat
+# from einops import rearrange, reduce, repeat
 from torch.nn import functional as F
 
 from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
-
+import torchvision.transforms as T
 
 class PatchEmbedding(nn.Module):
     def __init__(
@@ -43,11 +43,13 @@ class PatchEmbedding(nn.Module):
             )
         )
 
-    def forward(self, x):
-        B, *_ = x.shape
+    def forward(self, x: torch.Tensor):
+        # B, *_ = x.shape
+        B = x.shape[0]
         x = self.projection(x)
         # print(x.shape, )
-        cls_token = repeat(self.cls_token, "() p e -> b p e", b=B)
+        # cls_token = repeat(self.cls_token, "() p e -> b p e", b=B)
+        cls_token = self.cls_token.repeat(B, 1, 1)
 
         # print(cls_token.shape)
 
@@ -59,15 +61,30 @@ class PatchEmbedding(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, emb_size=768, num_heads=8, dropout=0):
+    def __init__(self, emb_size=768, num_heads=8, dropout=0.):
         super(MultiHeadAttention, self).__init__()
 
         self.num_heads = num_heads
         self.emb_size = emb_size
+        
+        self.query = nn.Sequential(
+            nn.Linear(emb_size, emb_size),
+            Rearrange("batch seq_len (num_head h_dim) -> batch num_head seq_len h_dim", num_head=self.num_heads)
+        )
 
-        self.query = nn.Linear(emb_size, emb_size)
-        self.key = nn.Linear(emb_size, emb_size)
-        self.value = nn.Linear(emb_size, emb_size)
+        self.key = nn.Sequential(
+            nn.Linear(emb_size, emb_size),
+            Rearrange("batch seq_len (num_head h_dim) -> batch num_head seq_len h_dim", num_head=self.num_heads)
+        )
+
+        self.value = nn.Sequential(
+            nn.Linear(emb_size, emb_size),
+            Rearrange("batch seq_len (num_head h_dim) -> batch num_head seq_len h_dim", num_head=self.num_heads)
+        )
+
+        # self.query = nn.Linear(emb_size, emb_size)
+        # self.key = nn.Linear(emb_size, emb_size)
+        # self.value = nn.Linear(emb_size, emb_size)
 
         self.projection = nn.Linear(emb_size, emb_size)
 
@@ -75,21 +92,24 @@ class MultiHeadAttention(nn.Module):
 
         self.scaling = (self.emb_size // num_heads) ** -0.5
 
-    def forward(self, x, mask=None):
-        rearrange_heads = (
-            "batch seq_len (num_head h_dim) -> batch num_head seq_len h_dim"
+        self.rearrange_out = Rearrange(
+            'batch num_head seq_length dim -> batch seq_length (num_head dim)'
         )
 
-        queries = rearrange(self.query(x), rearrange_heads, num_head=self.num_heads)
-        keys = rearrange(self.key(x), rearrange_heads, num_head=self.num_heads)
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
+        # rearrange_heads = (
+        #     "batch seq_len (num_head h_dim) -> batch num_head seq_len h_dim"
+        # )
 
-        values = rearrange(self.key(x), rearrange_heads, num_head=self.num_heads)
+        queries = self.query(x)
+        keys = self.key(x)
+        values = self.key(x)
 
         energies = torch.einsum("bhqd, bhkd -> bhqk", queries, keys)
 
         if mask is not None:
-            fill_value = torch.finfo(energies.dtype).min
-            energies.mask_fill(~mask, fill_value)
+            fill_value = 1e-20
+            energies = energies.masked_fill(mask, fill_value)
 
         attention = F.softmax(energies, dim=-1) * self.scaling
 
@@ -97,9 +117,11 @@ class MultiHeadAttention(nn.Module):
 
         out = torch.einsum("bhas, bhsd -> bhad", attention, values)
 
-        out = rearrange(
-            out, "batch num_head seq_length dim -> batch seq_length (num_head dim)"
-        )
+        # out = rearrange(
+        #     out, "batch num_head seq_length dim -> batch seq_length (num_head dim)"
+        # )
+
+        out = self.rearrange_out(out)
 
         out = self.projection(out)
 
@@ -112,10 +134,10 @@ class ResidualAdd(nn.Module):
 
         self.fn = fn
 
-    def forward(self, x, **kwargs):
+    def forward(self, x: torch.Tensor):
         res = x
 
-        out = self.fn(x, **kwargs)
+        out = self.fn(x)
 
         out += res
 
@@ -132,7 +154,7 @@ FeedForwardBlock = lambda emb_size=768, expansion=4, drop_p=0.0: nn.Sequential(
 
 class TransformerEncoderBlock(nn.Sequential):
     def __init__(
-        self, emb_size=768, drop_p=0.0, forward_expansion=4, forward_drop_p=0, **kwargs
+        self, emb_size=768, drop_p: float=0.0, forward_expansion=4, forward_drop_p: float=0., **kwargs
     ):
         super(TransformerEncoderBlock, self).__init__(
             ResidualAdd(
@@ -236,8 +258,27 @@ class VitLitModule(LightningModule):
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
 
+        self.predict_transform = T.Compose(
+            [T.ToTensor(), 
+             T.Resize((32, 32)),
+             T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+        )
+
     def forward(self, x: torch.Tensor):
         return self.model(x)
+
+    # @torch.jit.export
+    # def forward_jit(self, x: torch.Tensor):
+    #     with torch.no_grad():
+    #       # transform the inputs
+    #       x = self.predict_transform(x)
+
+    #       # forward pass
+    #       logits = self(x)
+
+    #       preds = F.softmax(logits, dim=-1)
+
+    #     return preds
 
     def model_step(self, batch: Any):
         x, y = batch

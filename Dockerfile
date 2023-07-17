@@ -2,25 +2,13 @@ FROM python:3.9-slim-buster
 
 WORKDIR /workspace
 
-# RUN export DEBIAN_FRONTEND=noninteractive \
-#     && echo "LC_ALL=en_US.UTF-8" >> /etc/environment \
-#     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
-#     && echo "LANG=en_US.UTF-8" > /etc/locale.conf \
-#     && apt update && apt install -y locales \
-#     && locale-gen en_US.UTF-8 \
-#     && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --no-cache-dir torch==1.12.1 torchvision==0.13.1 --index-url https://download.pytorch.org/whl/cpu \
+    && pip3 install gradio==3.36.1
 
-COPY requirements.txt .
-RUN pip install \
-    -r requirements.txt \
-    -f https://download.pytorch.org/whl/torch_stable.html \
-    && rm -rf /root/.cache/pip
+COPY gradio_demo.py .
 
-COPY setup.py .
-RUN pip install -e .
+COPY /model/model.script.pt ./model/
 
-COPY . .
+COPY /sample ./sample/
 
-# ENV LANG=en_US.UTF-8 \
-#     LANGUAGE=en_US:en \
-#     LC_ALL=en_US.UTF-8
+CMD ["python3", "gradio_demo.py"]
