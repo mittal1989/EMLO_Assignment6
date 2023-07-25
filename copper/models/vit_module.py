@@ -15,7 +15,7 @@ import torchvision.transforms as T
 class PatchEmbedding(nn.Module):
     def __init__(
         self,
-        in_channels=3,
+        in_channels=1,
         patch_size=16,
         emb_size=768,
         img_size=224,
@@ -197,7 +197,7 @@ class ClassificationHead(nn.Sequential):
 class ViT(nn.Sequential):
     def __init__(
         self,
-        in_channels=3,
+        in_channels=1,
         patch_size=16,
         emb_size=768,
         img_size=224,
@@ -230,10 +230,10 @@ class VitLitModule(LightningModule):
         self.save_hyperparameters(logger=False, ignore=["model"])
 
         self.model = ViT(
-            in_channels=3,
+            in_channels=1,
             patch_size=self.hparams.patch_size,
             emb_size=64,
-            img_size=32,
+            img_size=28,
             depth=6,
             num_classes=num_classes,
         )
